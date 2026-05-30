@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import plotly.express as px
 
-# Keep your path setup clean
+# Keep your path setup clean so internal modules can be imported smoothly
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.preprocess import load_and_clean
@@ -17,17 +17,14 @@ from src.pricing import DynamicPricingEngine
 @st.cache_data
 def load_data():
     """
-    Finds the dataset path dynamically from the root folder,
-    loads, cleans, and engineers features with caching enabled.
+    Loads data directly from a reliable online URL to bypass 
+    GitHub file size limits and missing local file issues on the cloud.
     """
-    # Get the path of the directory where app.py lives
-    current_dir = Path(__file__).parent
+    # Direct raw link to the Online Retail II dataset (CSV format)
+    data_url = "https://raw.githubusercontent.com/Marwansoliman/Online-Retail-II-Dataset/main/online_retail_II.csv"
 
-    # Navigate up to the repository root, then down to data/raw/
-    data_path = current_dir / ".." / "data" / "raw" / "online_retail_II.csv"
-
-    # Load and preprocess data using absolute-resolved path strings
-    df = load_and_clean(filepath=str(data_path.resolve()))
+    # Pass the URL string directly to your loading function (pandas handles URLs natively)
+    df = load_and_clean(filepath=data_url)
     df = engineer_features(df)
     rfm = build_rfm(df)
     
