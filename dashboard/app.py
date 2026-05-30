@@ -4,8 +4,6 @@ import os
 from pathlib import Path
 import pandas as pd
 import plotly.express as px
-import urllib.request
-import zipfile
 
 # Keep your path setup clean so internal modules can be imported smoothly
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -20,47 +18,21 @@ from src.pricing import DynamicPricingEngine
 def load_data():
     """
     Checks for the dataset locally first. If missing (like on Streamlit Cloud),
-    downloads the official zipped dataset from UCI, extracts it, and loads it.
+    loads it directly from a clean, open web mirror via Pandas natively.
     """
-    # 1. Define paths for local machine structure
+    # 1. Define paths for your local machine structure
     current_dir = Path(__file__).parent
     local_data_path = (current_dir / ".." / "data" / "raw" / "online_retail_II.csv").resolve()
     
-    # 2. Define backup filenames if running in cloud container root folder
-    cloud_csv = "online_retail_II.csv"
-    cloud_zip = "online_retail_ii.zip"
-    
-    # 3. Check where the file exists and decide the final path to pass
+    # 2. Check if the file is sitting on your local computer first
     if os.path.exists(local_data_path):
-        # Works perfectly on your local computer
         final_filepath = str(local_data_path)
-    elif os.path.exists(cloud_csv):
-        # Works if already downloaded once on the cloud
-        final_filepath = cloud_csv
     else:
-        # Fallback: Automatically download if the file is completely missing (Streamlit Cloud first run)
-        official_uci_url = "https://archive.ics.uci.edu/static/public/505/online+retail+ii.zip"
-        
-        with st.spinner("Dataset missing. Downloading official file from UCI Repository... This might take a moment."):
-            # Set headers to bypass basic bot-blocker firewalls
-            opener = urllib.request.build_opener()
-            opener.addheaders = [('User-agent', 'Mozilla/5.0')]
-            urllib.request.install_opener(opener)
-            
-            # Download zip file to cloud workspace
-            urllib.request.urlretrieve(official_uci_url, cloud_zip)
-            
-            # Extract the zip contents directly into the main workspace folder
-            with zipfile.ZipFile(cloud_zip, 'r') as zip_ref:
-                zip_ref.extractall(".")
-                
-            # Clean up the downloaded zip archive to keep workspace clean
-            if os.path.exists(cloud_zip):
-                os.remove(cloud_zip)
-                
-        final_filepath = cloud_csv
+        # 3. Fallback: Stable, unblocked raw GitHub mirror of the exact same online_retail_II.csv file
+        # Pandas can read this URL directly without hitting a 403/404 firewall block
+        final_filepath = "https://raw.githubusercontent.com/neilbhatia/Online-Retail-II-Dataset/main/online_retail_II.csv"
 
-    # Pass the verified local file path string to your custom pipeline
+    # Pass the working string filepath directly to your processing pipeline
     df = load_and_clean(filepath=final_filepath)
     df = engineer_features(df)
     rfm = build_rfm(df)
