@@ -4,8 +4,7 @@ import os
 from pathlib import Path
 import pandas as pd
 import plotly.express as px
-import io
-import requests
+import urllib.request
 
 # Keep your path setup clean so internal modules can be imported smoothly
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -20,37 +19,40 @@ from src.pricing import DynamicPricingEngine
 def load_data():
     """
     Checks for the dataset locally first. If missing (like on Streamlit Cloud),
-    downloads it securely via requests with browser headers to bypass firewalls,
-    and streams it smoothly into pandas.
+    downloads the file to the local disk workspace using an unblocked high-speed 
+    mirror, then processes it.
     """
     # 1. Define paths for your local machine structure
     current_dir = Path(__file__).parent
     local_data_path = (current_dir / ".." / "data" / "raw" / "online_retail_II.csv").resolve()
     
-    # 2. Check if the file is sitting on your local computer first
+    # 2. Define the target path inside the Streamlit Cloud container
+    cloud_data_path = os.path.join(os.getcwd(), "online_retail_II.csv")
+    
+    # 3. Determine if we can use the local machine file
     if os.path.exists(local_data_path):
-        # Local computer execution path
-        df = load_and_clean(filepath=str(local_data_path))
+        final_filepath = str(local_data_path)
+    # 4. Determine if it was already downloaded to the cloud server disk
+    elif os.path.exists(cloud_data_path):
+        final_filepath = cloud_data_path
+    # 5. Safe Fallback: Download the file to the disk so Pandas can read it locally
     else:
-        # Streamlit Cloud execution path
-        url = "https://raw.githubusercontent.com/neilbhatia/Online-Retail-II-Dataset/main/online_retail_II.csv"
+        # A completely open, high-speed cloud mirror that allows raw downloads
+        unblocked_url = "https://huggingface.co/datasets/as-cle-data/online-retail-ii/resolve/main/online_retail_II.csv"
         
-        # Add headers to perfectly mimic a standard web browser request and beat the firewall block
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-        
-        with st.spinner("Streaming dataset securely from mirror... This may take a moment."):
-            response = requests.get(url, headers=headers)
-            response.raise_for_status()  # Throws an error if the website breaks
+        with st.spinner("Downloading dataset to cloud server storage... Please wait, this takes a moment."):
+            # Add basic browser headers to be absolutely safe against infrastructure firewalls
+            opener = urllib.request.build_opener()
+            opener.addheaders = [('User-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')]
+            urllib.request.install_opener(opener)
             
-            # Convert the raw text download into an in-memory file-like stream block
-            data_stream = io.StringIO(response.text)
+            # Download and save the file physically to the cloud server disk
+            urllib.request.urlretrieve(unblocked_url, cloud_data_path)
             
-            # Pass the memory block directly to your cleaning pipeline
-            df = load_and_clean(filepath=data_stream)
+        final_filepath = cloud_data_path
 
-    # Run downstream feature transformation pipelines
+    # Pass the verified local physical file path to your cleaning pipeline
+    df = load_and_clean(filepath=final_filepath)
     df = engineer_features(df)
     rfm = build_rfm(df)
     
