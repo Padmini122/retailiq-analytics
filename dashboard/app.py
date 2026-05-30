@@ -1,14 +1,12 @@
 import streamlit as st
 import sys
-sys.path.append('..')
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pandas as pd
 import plotly.express as px
 from src.preprocess import load_and_clean
 from src.features import engineer_features, build_rfm
 from src.pricing import DynamicPricingEngine
-
-st.set_page_config(page_title="RetailIQ", layout="wide", page_icon="📊")
-
 @st.cache_data
 def load():
     df = load_and_clean(filepath='../data/raw/online_retail_II.csv')

@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-def load_and_clean(filepath="../data/raw/online_retail_II.csv"):
+def load_and_clean(filepath="..data/raw/online_retail_II.csv"):
     df = pd.read_csv(filepath)
     df = df.dropna(subset=['customer_id'])
     df = df[~df['invoice'].astype(str).str.startswith('C')]
