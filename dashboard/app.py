@@ -1,29 +1,56 @@
 import streamlit as st
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from pathlib import Path
 import pandas as pd
 import plotly.express as px
+
+# Keep your path setup clean
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from src.preprocess import load_and_clean
 from src.features import engineer_features, build_rfm
 from src.pricing import DynamicPricingEngine
+
+# ═══ DATA LOADING WITH CACHING ═══
+
 @st.cache_data
-def load():
-    df = load_and_clean(filepath='../data/raw/online_retail_II.csv')
+def load_data():
+    """
+    Finds the dataset path dynamically from the root folder,
+    loads, cleans, and engineers features with caching enabled.
+    """
+    # Get the path of the directory where app.py lives
+    current_dir = Path(__file__).parent
+
+    # Navigate up to the repository root, then down to data/raw/
+    data_path = current_dir / ".." / "data" / "raw" / "online_retail_II.csv"
+
+    # Load and preprocess data using absolute-resolved path strings
+    df = load_and_clean(filepath=str(data_path.resolve()))
     df = engineer_features(df)
-    return df, build_rfm(df)
+    rfm = build_rfm(df)
+    
+    return df, rfm
 
-df, rfm = load()
+# Call the cached data function cleanly
+df, rfm = load_data()
 
-# Sidebar
+
+# ═══ SIDEBAR ═══
 st.sidebar.title("📊 RetailIQ")
 st.sidebar.caption("Smart Retail Analytics · Thiranex Internship")
 year = st.sidebar.selectbox("Year", ["All", 2010, 2011])
+
+# Apply year filter safely
 d = df if year == "All" else df[df['Year'] == year]
 
-# Tabs
+
+# ═══ TABS INITIALIZATION ═══
 t1, t2, t3, t4 = st.tabs([
-    "📈 Overview", "👥 Customers", "💡 Pricing Engine", "⚠️ Dead Stock"])
+    "📈 Overview", "👥 Customers", "💡 Pricing Engine", "⚠️ Dead Stock"
+])
+
 
 # ═══ TAB 1: OVERVIEW ═══
 with t1:
@@ -35,7 +62,7 @@ with t1:
     e.metric("💎 Avg Order", f"£{d.groupby('invoice')['revenue'].sum().mean():,.2f}")
 
     monthly = d.groupby(['Year','Month'])['revenue'].sum().reset_index()
-    monthly['Period'] = monthly['Year'].astype(str)+'-'+monthly['Month'].astype(str).str.zfill(2)
+    monthly['Period'] = monthly['Year'].astype(str) + '-' + monthly['Month'].astype(str).str.zfill(2)
     fig = px.area(monthly, x='Period', y='revenue',
                   title='Monthly Revenue Trend',
                   color_discrete_sequence=['#ff4d00'])
@@ -58,6 +85,7 @@ with t1:
                       color_discrete_sequence=['#00875a'])
         st.plotly_chart(fig3, use_container_width=True)
 
+
 # ═══ TAB 2: CUSTOMERS ═══
 with t2:
     st.header("Customer Segments")
@@ -73,6 +101,7 @@ with t2:
         st.subheader("Segment Summary")
         st.dataframe(rfm.groupby('Segment')[['Recency','Frequency','Monetary']]
                      .mean().round(1), use_container_width=True)
+
 
 # ═══ TAB 3: PRICING ENGINE ═══
 with t3:
@@ -92,6 +121,7 @@ with t3:
         r1.metric("Optimal Price", f"£{r['optimal_price']}")
         r2.metric("Discount",      f"{r['discount_pct']}%")
         r3.metric("Revenue Gain",  f"£{r['revenue_gain']:+,.0f}")
+
 
 # ═══ TAB 4: DEAD STOCK ═══
 with t4:
